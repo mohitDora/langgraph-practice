@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def get_weather(city_name: str) -> dict:
     """
     Get the current weather in a city.
@@ -20,10 +21,7 @@ def get_weather(city_name: str) -> dict:
         raise EnvironmentError("WEATHER_API_KEY not set in environment variables.")
 
     url = "http://api.weatherapi.com/v1/current.json"
-    params = {
-        "key": api_key,
-        "q": city_name
-    }
+    params = {"key": api_key, "q": city_name}
 
     response = requests.get(url, params=params)
     response.raise_for_status()
@@ -32,7 +30,8 @@ def get_weather(city_name: str) -> dict:
     name = data["location"]["name"]
     temp_c = data["current"]["temp_c"]
 
-    return {"location":name, "temp_in_c":temp_c}
+    return {"location": name, "temp_in_c": temp_c}
+
 
 def search(query: str) -> dict:
     """
@@ -47,7 +46,5 @@ def search(query: str) -> dict:
     tavily = TavilySearch(max_results=2)
     return tavily.invoke(query)
 
-tools = [
-    get_weather,
-    search
-]
+
+tools = [get_weather, search]

@@ -6,8 +6,10 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
+from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
+memory = MemorySaver()
 
 
 class State(TypedDict):
@@ -16,7 +18,7 @@ class State(TypedDict):
 
 graph_builder = StateGraph(State)
 
-llm = ChatGroq(model="llama3-8b-8192", api_key=os.getenv("GROQ_API_KEY"))
+llm = ChatGroq(model="gemma2-9b-it", api_key=os.getenv("GROQ_API_KEY"))
 
 
 def chat(state: State):
@@ -27,7 +29,7 @@ graph_builder.add_edge(START, "chat-node")
 graph_builder.add_node("chat-node", chat)
 graph_builder.add_edge("chat-node", END)
 
-graph = graph_builder.compile()
+graph = graph_builder.compile(checkpointer=memory)
 
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +50,11 @@ except Exception as e:
 
     traceback.print_exc()
 
-res = graph.invoke({"messages": "hello"})
+config = {"configurable": {"thread_id": "1"}}
 
-print(res["messages"][-1].content)
+questions = ["Hey! My name is Mohit", "Hey, do you remember my name?"]
+
+for question in questions:
+    res = graph.invoke({"messages": question}, config=config)
+
+    print(res["messages"][-1].content)
