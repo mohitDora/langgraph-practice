@@ -8,8 +8,7 @@ from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.messages import SystemMessage
-
-from tools import tools
+from langchain_core.tools import tool
 
 load_dotenv()
 
@@ -18,50 +17,27 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
+@tool
+def add(a: float, b: float) -> float:
+    """Add two numbers"""
+    return a + b
+
+
+tool_node = ToolNode([add])
+
 graph_builder = StateGraph(State)
 
 system_message = SystemMessage(
     content=(
-        """
-        {instructions}
-
-        TOOLS:
-        ------
-
-        You have access to the following tools:
-
-        {tools}
-
-        To use a tool, please use the following format:
-
-        ```
-        Thought: Do I need to use a tool? Yes
-        Action: the action to take, should be one of [{tool_names}]
-        Action Input: the input to the action
-        Observation: the result of the action
-        ```
-
-        When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
-
-        ```
-        Thought: Do I need to use a tool? No
-        Final Answer: [your response here]
-        ```
-
-        Begin!
-
-        Previous conversation history:
-        {chat_history}
-
-        New input: {input}
-        {agent_scratchpad}
-
-        """
+        "You are a helpful AI assistant. "
+        "You have access to tools only when necessary. "
+        "Do not use tools for simple conversational greetings or questions that do not require external information. "
+        "Only use the provided tools if the user's query explicitly requires tools."
     )
 )
 
-llm = ChatGroq(model="deepseek-r1-distill-llama-70b", api_key=os.getenv("GROQ_API_KEY"))
-llm_with_tools = llm.bind_tools(tools)
+llm = ChatGroq(model="llama3-8b-8192", api_key=os.getenv("GROQ_API_KEY"))
+llm_with_tools = llm.bind_tools([add])
 
 
 def chat(state: State):
@@ -69,7 +45,7 @@ def chat(state: State):
 
 
 graph_builder.add_node("chat-node", chat)
-graph_builder.add_node("tools", ToolNode(tools))
+graph_builder.add_node("tools", tool_node)
 
 graph_builder.add_edge(START, "chat-node")
 graph_builder.add_conditional_edges("chat-node", tools_condition)
@@ -96,7 +72,7 @@ except Exception as e:
 
     traceback.print_exc()
 
-# res = graph.invoke({"messages": "What is the final result of real madrid vs pachuca?"})
+res = graph.invoke({"messages": "What is 2 + 4 and then add 10"})
 
-# for message in res["messages"]:
-#     message.pretty_print()
+for message in res["messages"]:
+    message.pretty_print()
